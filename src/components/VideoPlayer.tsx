@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useVideoStore } from '@/lib/store';
-import { FaPlay, FaPause, FaStepForward, FaStepBackward } from 'react-icons/fa';
+import { FaPlay, FaPause, FaForward, FaBackward, FaStepForward, FaStepBackward } from 'react-icons/fa';
 
 export const VideoPlayer = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -52,17 +52,33 @@ export const VideoPlayer = () => {
     handlePlay();
   }, [video.isPlaying, setIsPlaying]);
 
-  // Handle current time updates
+  // Handle current time updates and clip boundaries
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || videoElement.currentTime === video.currentTime) return;
+    if (!videoElement) return;
     
-    videoElement.currentTime = video.currentTime;
-  }, [video.currentTime]);
+    // Ensure current time stays within clip boundaries
+    if (videoElement.currentTime < video.clipStart) {
+      videoElement.currentTime = video.clipStart;
+    } else if (videoElement.currentTime > video.clipEnd) {
+      videoElement.currentTime = video.clipEnd;
+      setIsPlaying(false);
+    }
+    
+    setCurrentTime(videoElement.currentTime);
+  }, [video.currentTime, video.clipStart, video.clipEnd, setCurrentTime, setIsPlaying]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const currentTime = videoRef.current.currentTime;
+      // Ensure time stays within clip boundaries
+      if (currentTime < video.clipStart) {
+        videoRef.current.currentTime = video.clipStart;
+      } else if (currentTime > video.clipEnd) {
+        videoRef.current.currentTime = video.clipEnd;
+        setIsPlaying(false);
+      }
+      setCurrentTime(currentTime);
     }
   };
 
@@ -73,6 +89,10 @@ export const VideoPlayer = () => {
       if (video.isPlaying) {
         videoRef.current.pause();
       } else {
+        // If we're at the end, restart from the beginning of the clip
+        if (videoRef.current.currentTime >= video.clipEnd) {
+          videoRef.current.currentTime = video.clipStart;
+        }
         await videoRef.current.play();
       }
       setIsPlaying(!video.isPlaying);
@@ -85,7 +105,8 @@ export const VideoPlayer = () => {
   const handleSeek = (time: number) => {
     if (!videoRef.current || !video.file) return;
     
-    const newTime = Math.max(0, Math.min(time, video.duration));
+    // Ensure time stays within clip boundaries
+    const newTime = Math.max(video.clipStart, Math.min(time, video.clipEnd));
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
@@ -112,29 +133,48 @@ export const VideoPlayer = () => {
       </div>
       <div className="flex items-center justify-center space-x-4">
         <button
-          onClick={() => handleSeek(Math.max(0, video.currentTime - 5))}
+          onClick={() => handleSeek(video.clipStart)}
           className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
           disabled={!video.file}
+          title="Go to start of clip"
         >
-          <FaStepBackward className="w-6 h-6" />
+          <FaStepBackward className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => handleSeek(Math.max(video.clipStart, video.currentTime - 5))}
+          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+          disabled={!video.file}
+          title="Step backward 5 seconds"
+        >
+          <FaBackward className="w-5 h-5" />
         </button>
         <button
           onClick={handlePlayPause}
           className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
           disabled={!video.file}
+          title={video.isPlaying ? "Pause" : "Play"}
         >
           {video.isPlaying ? (
-            <FaPause className="w-6 h-6" />
+            <FaPause className="w-5 h-5" />
           ) : (
-            <FaPlay className="w-6 h-6" />
+            <FaPlay className="w-5 h-5" />
           )}
         </button>
         <button
-          onClick={() => handleSeek(Math.min(video.duration, video.currentTime + 5))}
+          onClick={() => handleSeek(Math.min(video.clipEnd, video.currentTime + 5))}
           className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
           disabled={!video.file}
+          title="Step forward 5 seconds"
         >
-          <FaStepForward className="w-6 h-6" />
+          <FaForward className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => handleSeek(video.clipEnd)}
+          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+          disabled={!video.file}
+          title="Go to end of clip"
+        >
+          <FaStepForward className="w-5 h-5" />
         </button>
       </div>
     </div>

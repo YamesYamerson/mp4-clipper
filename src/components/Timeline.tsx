@@ -288,7 +288,7 @@ export const Timeline = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center justify-between">
                 <button
                   onClick={() => {
                     console.log('Canceling clip process');
