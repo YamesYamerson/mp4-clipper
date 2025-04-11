@@ -10,20 +10,20 @@ export interface VideoState {
   duration: number;
   currentTime: number;
   isPlaying: boolean;
-  clips: VideoClip[];
-  selectedClip: string | null;
+  clipStart: number;
+  clipEnd: number;
   isProcessing: boolean;
   error: string | null;
 }
+
+export type ProgressCallback = (progress: number) => void;
 
 export interface VideoEditorStore {
   video: VideoState;
   setVideoFile: (file: File) => Promise<void>;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
-  addClip: (clip: Omit<VideoClip, 'id'>) => void;
-  removeClip: (id: string) => void;
-  selectClip: (id: string | null) => void;
-  updateClip: (id: string, updates: Partial<VideoClip>) => void;
-  exportClip: (id: string) => Promise<Blob | null>;
+  setClipStart: (time: number) => void;
+  setClipEnd: (time: number) => void;
+  clipVideo: (start: number, end: number, onProgress: ProgressCallback) => Promise<Blob | null>;
 } 

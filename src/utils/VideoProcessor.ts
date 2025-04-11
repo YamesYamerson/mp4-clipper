@@ -2,6 +2,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import coreURL from '@ffmpeg/core?url';
 import wasmURL from '@ffmpeg/core/wasm?url';
+import { ProgressCallback } from '@/types/video';
 
 interface FFmpegLogEvent {
   message: string;
@@ -16,17 +17,26 @@ export class VideoProcessor {
   private static instance: VideoProcessor;
   private ffmpeg: FFmpeg;
   private isInitialized: boolean = false;
+  private progressCallback: ProgressCallback | null = null;
+  private isProcessingComplete: boolean = false;
 
   private constructor() {
     this.ffmpeg = new FFmpeg();
     
     // Set up logging and progress handlers
     this.ffmpeg.on('log', ({ message }: FFmpegLogEvent) => {
+      // Ignore abort message during cleanup if processing was successful
+      if (message === 'Aborted()' && this.isProcessingComplete) {
+        return;
+      }
       console.log('FFmpeg Log:', message);
     });
 
-    this.ffmpeg.on('progress', ({ progress, time }: FFmpegProgressEvent) => {
-      console.log(`FFmpeg Progress: ${progress}% at ${time}ms`);
+    this.ffmpeg.on('progress', ({ progress }: FFmpegProgressEvent) => {
+      console.log(`FFmpeg Progress: ${progress}% at ${Date.now()}ms`);
+      if (this.progressCallback) {
+        this.progressCallback(progress / 100);
+      }
     });
   }
 
@@ -35,25 +45,6 @@ export class VideoProcessor {
       VideoProcessor.instance = new VideoProcessor();
     }
     return VideoProcessor.instance;
-  }
-
-  private async cleanup() {
-    try {
-      await this.ffmpeg.terminate();
-      this.isInitialized = false;
-      this.ffmpeg = new FFmpeg();
-      
-      // Re-setup logging and progress handlers
-      this.ffmpeg.on('log', ({ message }: FFmpegLogEvent) => {
-        console.log('FFmpeg Log:', message);
-      });
-
-      this.ffmpeg.on('progress', ({ progress, time }: FFmpegProgressEvent) => {
-        console.log(`FFmpeg Progress: ${progress}% at ${time}ms`);
-      });
-    } catch (error) {
-      console.error('Error during cleanup:', error);
-    }
   }
 
   async init() {
@@ -71,12 +62,15 @@ export class VideoProcessor {
     }
   }
 
-  async trimVideo(inputFile: File, startTime: number, endTime: number): Promise<Blob> {
+  async trimVideo(inputFile: File, startTime: number, endTime: number, onProgress?: ProgressCallback): Promise<Blob> {
     if (!this.isInitialized) {
       await this.init();
     }
 
     try {
+      this.progressCallback = onProgress || null;
+      this.isProcessingComplete = false;
+
       // Write the input file to FFmpeg's virtual filesystem
       await this.ffmpeg.writeFile('input.mp4', await fetchFile(inputFile));
 
@@ -99,6 +93,9 @@ export class VideoProcessor {
       // Create blob from the data
       const blob = new Blob([data], { type: 'video/mp4' });
       
+      // Mark processing as complete before cleanup
+      this.isProcessingComplete = true;
+      
       // Clean up FFmpeg instance
       await this.cleanup();
       
@@ -107,6 +104,9 @@ export class VideoProcessor {
       console.error('Error processing video:', error);
       await this.cleanup();
       throw error;
+    } finally {
+      this.progressCallback = null;
+      this.isProcessingComplete = false;
     }
   }
 
@@ -154,6 +154,32 @@ export class VideoProcessor {
       console.error('Failed to generate thumbnail:', error);
       await this.cleanup();
       throw error;
+    }
+  }
+
+  private async cleanup() {
+    try {
+      await this.ffmpeg.terminate();
+      this.isInitialized = false;
+      this.ffmpeg = new FFmpeg();
+      
+      // Re-setup logging and progress handlers
+      this.ffmpeg.on('log', ({ message }: FFmpegLogEvent) => {
+        // Ignore abort message during cleanup if processing was successful
+        if (message === 'Aborted()' && this.isProcessingComplete) {
+          return;
+        }
+        console.log('FFmpeg Log:', message);
+      });
+
+      this.ffmpeg.on('progress', ({ progress }: FFmpegProgressEvent) => {
+        console.log(`FFmpeg Progress: ${progress}% at ${Date.now()}ms`);
+        if (this.progressCallback) {
+          this.progressCallback(progress / 100);
+        }
+      });
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
   }
 } 

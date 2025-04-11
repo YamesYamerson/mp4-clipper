@@ -1,128 +1,318 @@
-import { useCallback, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useVideoStore } from '@/lib/store';
-import { FaDownload, FaTrash } from 'react-icons/fa';
+import { FaDownload, FaSpinner, FaTimes } from 'react-icons/fa';
+
+interface ProcessedVideo {
+  blob: Blob;
+  size: string;
+  type: string;
+}
 
 export const Timeline = () => {
-  const { video, addClip, selectClip, updateClip, removeClip, exportClip } = useVideoStore();
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(0);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [processedVideo, setProcessedVideo] = useState<ProcessedVideo | null>(null);
+  const [downloadName, setDownloadName] = useState('');
+  const [fileExtension, setFileExtension] = useState('.mp4');
+  const { video, setCurrentTime, setClipStart, setClipEnd, clipVideo } = useVideoStore();
 
-  const handleAddClip = useCallback(() => {
-    if (video.duration > 0) {
-      addClip({
-        startTime: 0,
-        endTime: video.duration,
-        duration: video.duration,
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('State update:', {
+      isProcessing,
+      progress,
+      processedVideo: processedVideo ? {
+        size: processedVideo.size,
+        type: processedVideo.type,
+        blobSize: processedVideo.blob.size
+      } : null,
+      downloadName,
+      fileExtension
+    });
+  }, [isProcessing, progress, processedVideo, downloadName, fileExtension]);
+
+  const startPos = (video.clipStart / video.duration) * 100;
+  const endPos = (video.clipEnd / video.duration) * 100;
+  const currentPos = (video.currentTime / video.duration) * 100;
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  // Reset processed video when clip boundaries change
+  useEffect(() => {
+    if (processedVideo) {
+      console.log('Resetting processed video due to clip boundary change');
+      setProcessedVideo(null);
+      setDownloadName('');
+    }
+  }, [video.clipStart, video.clipEnd]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !timelineRef.current) return;
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      const time = Math.max(0, Math.min(video.duration * pos, video.duration));
+
+      if (isDragging === 'start') {
+        setClipStart(Math.min(time, video.clipEnd - 1));
+      } else {
+        setClipEnd(Math.max(time, video.clipStart + 1));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(null);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, video.duration, video.clipStart, video.clipEnd, setClipStart, setClipEnd]);
+
+  const handleTimelineClick = (e: React.MouseEvent) => {
+    if (!timelineRef.current || isDragging) return;
+
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const time = Math.max(0, Math.min(video.duration * pos, video.duration));
+    setCurrentTime(time);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleClipVideo = async () => {
+    if (!video.file) {
+      console.log('No video file available');
+      return;
+    }
+    
+    console.log('Starting clip process');
+    setIsProcessing(true);
+    setProgress(0);
+    setProcessedVideo(null);
+    setDownloadName('');
+    
+    try {
+      const blob = await clipVideo(video.clipStart, video.clipEnd, (progress) => {
+        console.log('Progress update:', progress);
+        setProgress(progress);
       });
-    }
-  }, [video.duration, addClip]);
+      
+      console.log('Clip process complete, blob received:', !!blob);
+      if (blob) {
+        const baseFileName = video.file.name.replace(/\.[^/.]+$/, '');
+        const newName = `${baseFileName}_clip`;
+        const newExtension = `.${blob.type.split('/')[1]}`;
+        
+        console.log('Creating processed video object:', {
+          size: formatFileSize(blob.size),
+          type: blob.type,
+          name: newName,
+          extension: newExtension
+        });
 
-  const handleClipUpdate = useCallback(
-    (id: string, startTime: number, endTime: number) => {
-      updateClip(id, {
-        startTime,
-        endTime,
-        duration: endTime - startTime,
+        // Create the processed video object
+        const processedVideoObj = {
+          blob,
+          size: formatFileSize(blob.size),
+          type: blob.type
+        };
+
+        // Force a state update with setTimeout to ensure it's processed in the next tick
+        setTimeout(() => {
+          setProcessedVideo(processedVideoObj);
+          setDownloadName(newName);
+          setFileExtension(newExtension);
+          setIsProcessing(false);
+          setProgress(0);
+          
+          console.log('States updated:', {
+            processedVideo: processedVideoObj,
+            downloadName: newName,
+            fileExtension: newExtension
+          });
+        }, 0);
+      }
+    } catch (error) {
+      console.error('Error during clip process:', error);
+      setProcessedVideo(null);
+      setDownloadName('');
+      setIsProcessing(false);
+      setProgress(0);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!processedVideo || !downloadName) {
+      console.log('Cannot download: missing data', {
+        hasProcessedVideo: !!processedVideo,
+        hasDownloadName: !!downloadName
       });
-    },
-    [updateClip]
-  );
-
-  const handleDragStart = useCallback((e: React.MouseEvent, clipId: string) => {
-    setIsDragging(true);
-    setDragStart(e.clientX);
-    selectClip(clipId);
-  }, [selectClip]);
-
-  const handleDrag = useCallback((e: React.MouseEvent, clipId: string) => {
-    if (!isDragging || !video.selectedClip) return;
-
-    const clip = video.clips.find(c => c.id === clipId);
-    if (!clip) return;
-
-    const deltaX = e.clientX - dragStart;
-    const timelineWidth = e.currentTarget.parentElement?.clientWidth || 0;
-    const timeDelta = (deltaX / timelineWidth) * video.duration;
-
-    const newStartTime = Math.max(0, clip.startTime + timeDelta);
-    const newEndTime = Math.min(video.duration, clip.endTime + timeDelta);
-
-    if (newStartTime < newEndTime) {
-      handleClipUpdate(clipId, newStartTime, newEndTime);
-      setDragStart(e.clientX);
+      return;
     }
-  }, [isDragging, video.selectedClip, video.clips, video.duration, dragStart, handleClipUpdate]);
 
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+    console.log('Starting download', {
+      fileName: `${downloadName}${fileExtension}`,
+      fileSize: processedVideo.size
+    });
 
-  const handleExport = useCallback(async (clipId: string) => {
-    const blob = await exportClip(clipId);
-    if (blob) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `clip-${clipId}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-  }, [exportClip]);
+    const url = URL.createObjectURL(processedVideo.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${downloadName}${fileExtension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Debug render logging
+  console.log('Rendering Timeline with state:', {
+    hasProcessedVideo: !!processedVideo,
+    isProcessing,
+    progress,
+    downloadName
+  });
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Timeline</h2>
-        <button
-          onClick={handleAddClip}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Add Clip
-        </button>
+    <div className="max-w-3xl mx-auto space-y-4">
+      <div className="relative h-12" ref={timelineRef} onClick={handleTimelineClick}>
+        {/* Timeline background */}
+        <div className="absolute inset-0 bg-gray-200 rounded-full" />
+        
+        {/* Selected range */}
+        <div
+          className="absolute h-full bg-blue-200 rounded-full"
+          style={{
+            left: `${startPos}%`,
+            width: `${endPos - startPos}%`,
+          }}
+        />
+        
+        {/* Playhead */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-blue-600"
+          style={{ left: `${currentPos}%` }}
+        />
+        
+        {/* Start handle */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-blue-600 rounded-full cursor-pointer hover:scale-110 transition-transform"
+          style={{ left: `${startPos}%` }}
+          onMouseDown={() => setIsDragging('start')}
+        />
+        
+        {/* End handle */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-blue-600 rounded-full cursor-pointer hover:scale-110 transition-transform"
+          style={{ left: `${endPos}%` }}
+          onMouseDown={() => setIsDragging('end')}
+        />
       </div>
 
-      <div 
-        className="relative h-32 bg-gray-200 rounded-lg overflow-hidden"
-        onMouseUp={handleDragEnd}
-        onMouseLeave={handleDragEnd}
-      >
-        {video.clips.map((clip) => (
-          <div
-            key={clip.id}
-            className={`absolute h-full bg-blue-400 cursor-move group ${
-              video.selectedClip === clip.id ? 'ring-2 ring-blue-600' : ''
-            }`}
-            style={{
-              left: `${(clip.startTime / video.duration) * 100}%`,
-              width: `${((clip.endTime - clip.startTime) / video.duration) * 100}%`,
-            }}
-            onMouseDown={(e) => handleDragStart(e, clip.id)}
-            onMouseMove={(e) => handleDrag(e, clip.id)}
-          >
-            <div className="absolute inset-0 flex items-center justify-center text-white">
-              {clip.duration.toFixed(1)}s
-            </div>
-            <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => handleExport(clip.id)}
-                className="p-1 bg-white rounded-full hover:bg-gray-100"
-                title="Export clip"
-              >
-                <FaDownload className="w-4 h-4 text-blue-500" />
-              </button>
-              <button
-                onClick={() => removeClip(clip.id)}
-                className="p-1 bg-white rounded-full hover:bg-gray-100"
-                title="Delete clip"
-              >
-                <FaTrash className="w-4 h-4 text-red-500" />
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Time indicators */}
+      <div className="flex justify-between text-sm text-gray-600">
+        <span>{formatTime(video.clipStart)}</span>
+        <span>{formatTime(video.clipEnd - video.clipStart)} selected</span>
+        <span>{formatTime(video.clipEnd)}</span>
       </div>
+
+      {/* Clip and Download buttons */}
+      {video.clipEnd > video.clipStart && (
+        <div className="flex flex-col items-center gap-4">
+          {!processedVideo ? (
+            <button
+              onClick={handleClipVideo}
+              disabled={isProcessing}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-black rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <>
+                  <FaSpinner className="animate-spin" />
+                  Processing... {Math.round(progress * 100)}%
+                </>
+              ) : (
+                <>
+                  Prepare Clip
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="timeline-download-panel p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>Size: {processedVideo.size}</span>
+                <span>Type: {processedVideo.type}</span>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <label htmlFor="filename" className="text-sm font-medium text-gray-700">
+                  File name
+                </label>
+                <div className="filename-input-group">
+                  <input
+                    id="filename"
+                    type="text"
+                    value={downloadName}
+                    onChange={(e) => setDownloadName(e.target.value)}
+                    className="filename-input px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    placeholder="Enter file name"
+                  />
+                  <select
+                    value={fileExtension}
+                    onChange={(e) => setFileExtension(e.target.value)}
+                    className="extension-select px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                  >
+                    <option value=".mp4">.mp4</option>
+                    <option value=".mov">.mov</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  onClick={() => {
+                    console.log('Canceling clip process');
+                    setProcessedVideo(null);
+                    setDownloadName('');
+                  }}
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  <FaTimes />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={!downloadName}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-black rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaDownload />
+                  Download
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }; 

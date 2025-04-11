@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import { useVideoStore } from '@/lib/store';
 import { FaPlay, FaPause, FaStepForward, FaStepBackward } from 'react-icons/fa';
 
@@ -98,16 +98,18 @@ export const VideoPlayer = () => {
 
   return (
     <div className="space-y-4">
-      <video
-        ref={videoRef}
-        className="w-full rounded-lg shadow-lg"
-        onTimeUpdate={handleTimeUpdate}
-        onError={handleError}
-        onEnded={() => setIsPlaying(false)}
-        playsInline
-        preload="metadata"
-        controls={false}
-      />
+      <div className="max-w-3xl mx-auto">
+        <video
+          ref={videoRef}
+          className="w-full rounded-lg shadow-lg"
+          onTimeUpdate={handleTimeUpdate}
+          onError={handleError}
+          onEnded={() => setIsPlaying(false)}
+          playsInline
+          preload="metadata"
+          controls={false}
+        />
+      </div>
       <div className="flex items-center justify-center space-x-4">
         <button
           onClick={() => handleSeek(Math.max(0, video.currentTime - 5))}

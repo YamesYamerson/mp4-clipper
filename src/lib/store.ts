@@ -1,30 +1,41 @@
 import { create } from 'zustand';
 import { VideoEditorStore, VideoState } from '@/types/video';
-import { VideoProcessor } from '../utils/videoProcessor';
+import { VideoProcessor } from '../utils/VideoProcessor';
 
 const initialState: VideoState = {
   file: null,
   duration: 0,
   currentTime: 0,
   isPlaying: false,
-  clips: [],
-  selectedClip: null,
+  clipStart: 0,
+  clipEnd: 0,
   isProcessing: false,
   error: null,
 };
 
 export const useVideoStore = create<VideoEditorStore>((set, get) => ({
   video: initialState,
+  
   setVideoFile: async (file) => {
+    console.log('Setting video file:', file.name);
     set((state) => ({ video: { ...state.video, file, isProcessing: true } }));
     try {
       const processor = VideoProcessor.getInstance();
       await processor.init();
       const duration = await processor.getVideoDuration(file);
+      console.log('Video duration:', duration);
       set((state) => ({
-        video: { ...state.video, duration, isProcessing: false },
+        video: { 
+          ...state.video, 
+          duration, 
+          isProcessing: false,
+          clipStart: 0,
+          clipEnd: duration,
+          error: null
+        },
       }));
     } catch (error) {
+      console.error('Error setting video file:', error);
       set((state) => ({
         video: {
           ...state.video,
@@ -34,50 +45,53 @@ export const useVideoStore = create<VideoEditorStore>((set, get) => ({
       }));
     }
   },
-  setCurrentTime: (time) => set((state) => ({ video: { ...state.video, currentTime: time } })),
-  setIsPlaying: (isPlaying) => set((state) => ({ video: { ...state.video, isPlaying } })),
-  addClip: (clip) =>
-    set((state) => ({
-      video: {
-        ...state.video,
-        clips: [...state.video.clips, { ...clip, id: crypto.randomUUID() }],
-      },
-    })),
-  removeClip: (id) =>
-    set((state) => ({
-      video: {
-        ...state.video,
-        clips: state.video.clips.filter((clip) => clip.id !== id),
-        selectedClip: state.video.selectedClip === id ? null : state.video.selectedClip,
-      },
-    })),
-  selectClip: (id) => set((state) => ({ video: { ...state.video, selectedClip: id } })),
-  updateClip: (id, updates) =>
-    set((state) => ({
-      video: {
-        ...state.video,
-        clips: state.video.clips.map((clip) =>
-          clip.id === id ? { ...clip, ...updates } : clip
-        ),
-      },
-    })),
-  exportClip: async (id) => {
-    const state = get();
-    const clip = state.video.clips.find((c) => c.id === id);
-    if (!clip || !state.video.file) return null;
 
-    set((state) => ({ video: { ...state.video, isProcessing: true } }));
+  setCurrentTime: (time) => {
+    console.log('Setting current time:', time);
+    set((state) => ({ 
+      video: { ...state.video, currentTime: time } 
+    }));
+  },
+
+  setIsPlaying: (isPlaying) => {
+    console.log('Setting is playing:', isPlaying);
+    set((state) => ({ 
+      video: { ...state.video, isPlaying } 
+    }));
+  },
+
+  setClipStart: (time) => {
+    console.log('Setting clip start:', time);
+    set((state) => ({ 
+      video: { ...state.video, clipStart: time } 
+    }));
+  },
+
+  setClipEnd: (time) => {
+    console.log('Setting clip end:', time);
+    set((state) => ({ 
+      video: { ...state.video, clipEnd: time } 
+    }));
+  },
+
+  clipVideo: async (start, end, onProgress) => {
+    console.log('Starting video clip process:', { start, end });
+    const state = get();
+    if (!state.video.file) {
+      console.error('No video file available for clipping');
+      return null;
+    }
+
+    set((state) => ({ video: { ...state.video, isProcessing: true, error: null } }));
     try {
       const processor = VideoProcessor.getInstance();
       await processor.init();
-      const blob = await processor.trimVideo(
-        state.video.file,
-        clip.startTime,
-        clip.endTime
-      );
+      const blob = await processor.trimVideo(state.video.file, start, end, onProgress);
+      console.log('Video clip process complete');
       set((state) => ({ video: { ...state.video, isProcessing: false } }));
       return blob;
     } catch (error) {
+      console.error('Error during video clip process:', error);
       set((state) => ({
         video: {
           ...state.video,
