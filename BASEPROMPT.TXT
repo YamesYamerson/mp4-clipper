@@ -1,0 +1,30 @@
+For browser-based video editing, WebAssembly (Wasm) paired with a modern JavaScript framework like React, or a combination like Remotion offers the best combination of performance and flexibility. This allows for features comparable to desktop video editors, while still providing a web-based experience. 
+Elaboration:
+
+    WebAssembly (Wasm):
+    Wasm is a binary instruction format for the web that allows for near-native speed performance of code on web browsers. This is crucial for demanding tasks like video editing. 
+
+JavaScript Frameworks (React, etc.):
+Frameworks like React provide a robust way to build user interfaces and manage complex video editing logic within the browser. 
+Remotion:
+Remotion is a React-based framework specifically designed for programmatic video creation and editing. It leverages React's declarative syntax for easier video management and provides a UI for previewing and editing, while also allowing for integration with custom UIs, making it suitable for various project types. 
+Why this combination?
+The combination of Wasm and a JavaScript framework allows for a powerful, high-performance browser-based video editing experience. This approach enables developers to leverage the speed of Wasm for rendering and processing while using a familiar and flexible framework like React to build the user interface and manage video editing functionalities. 
+
+Other notable technologies:
+
+    JavaScript Video Editing Libraries:
+    Various libraries, like those listed on GitHub, provide tools for programmatic video creation and manipulation within JavaScript. 
+
+Open Source Video Editors:
+While some open-source video editors, like OpenShot, primarily focus on desktop applications, some can be adapted or integrated with web-based tools. 
+
+Key Considerations for Choosing:
+
+    Performance:
+    Wasm is essential for handling the processing demands of video editing within a browser environment. 
+
+Flexibility:
+A JavaScript framework provides a robust foundation for building custom user interfaces and features. 
+Ease of Development:
+Remotion, for instance, simplifies video creation and editing through its React-based approach. 
