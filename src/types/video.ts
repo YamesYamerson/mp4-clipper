@@ -3,6 +3,10 @@ export interface VideoClip {
   startTime: number;
   endTime: number;
   duration: number;
+  name: string;
+  extension: string;
+  blob: Blob;
+  thumbnail?: Blob;
 }
 
 export interface VideoState {
@@ -14,6 +18,7 @@ export interface VideoState {
   clipEnd: number;
   isProcessing: boolean;
   error: string | null;
+  batch: VideoClip[];
 }
 
 export type ProgressCallback = (progress: number) => void;
@@ -26,4 +31,7 @@ export interface VideoEditorStore {
   setClipStart: (time: number) => void;
   setClipEnd: (time: number) => void;
   clipVideo: (start: number, end: number, onProgress: ProgressCallback) => Promise<Blob | null>;
+  addToBatch: (clip: VideoClip) => void;
+  removeFromBatch: (id: string) => void;
+  clearBatch: () => void;
 } 

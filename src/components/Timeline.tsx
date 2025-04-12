@@ -1,11 +1,14 @@
 import { useRef, useEffect, useState } from 'react';
 import { useVideoStore } from '@/lib/store';
-import { FaDownload, FaSpinner, FaTimes } from 'react-icons/fa';
+import { FaSpinner, FaTimes } from 'react-icons/fa';
+import { v4 as uuidv4 } from 'uuid';
+import { VideoClip } from '@/types/video';
 
 interface ProcessedVideo {
   blob: Blob;
   size: string;
   type: string;
+  thumbnail: Blob;
 }
 
 export const Timeline = () => {
@@ -16,28 +19,12 @@ export const Timeline = () => {
   const [processedVideo, setProcessedVideo] = useState<ProcessedVideo | null>(null);
   const [downloadName, setDownloadName] = useState('');
   const [fileExtension, setFileExtension] = useState('.mp4');
-  const { video, setCurrentTime, setClipStart, setClipEnd, clipVideo } = useVideoStore();
-
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('State update:', {
-      isProcessing,
-      progress,
-      processedVideo: processedVideo ? {
-        size: processedVideo.size,
-        type: processedVideo.type,
-        blobSize: processedVideo.blob.size
-      } : null,
-      downloadName,
-      fileExtension
-    });
-  }, [isProcessing, progress, processedVideo, downloadName, fileExtension]);
+  const { video, setCurrentTime, setClipStart, setClipEnd, clipVideo, addToBatch } = useVideoStore();
 
   const startPos = (video.clipStart / video.duration) * 100;
   const endPos = (video.clipEnd / video.duration) * 100;
   const currentPos = (video.currentTime / video.duration) * 100;
 
-  // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -45,15 +32,6 @@ export const Timeline = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
-
-  // Reset processed video when clip boundaries change
-  useEffect(() => {
-    if (processedVideo) {
-      console.log('Resetting processed video due to clip boundary change');
-      setProcessedVideo(null);
-      setDownloadName('');
-    }
-  }, [video.clipStart, video.clipEnd]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -124,6 +102,39 @@ export const Timeline = () => {
         const newName = `${baseFileName}_clip`;
         const newExtension = `.${blob.type.split('/')[1]}`;
         
+        // Create a video element to extract the first frame
+        const videoElement = document.createElement('video');
+        videoElement.src = URL.createObjectURL(blob);
+        
+        // Wait for the video to be loaded
+        await new Promise((resolve) => {
+          videoElement.onloadedmetadata = resolve;
+        });
+        
+        // Seek to the first frame
+        videoElement.currentTime = 0;
+        
+        // Create a canvas to capture the frame
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        // Wait for the frame to be ready
+        await new Promise((resolve) => {
+          videoElement.onseeked = () => {
+            ctx?.drawImage(videoElement, 0, 0);
+            resolve(null);
+          };
+        });
+        
+        // Convert canvas to blob
+        const thumbnailBlob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+          }, 'image/jpeg', 0.8);
+        });
+        
         console.log('Creating processed video object:', {
           size: formatFileSize(blob.size),
           type: blob.type,
@@ -131,26 +142,19 @@ export const Timeline = () => {
           extension: newExtension
         });
 
-        // Create the processed video object
         const processedVideoObj = {
           blob,
           size: formatFileSize(blob.size),
-          type: blob.type
+          type: blob.type,
+          thumbnail: thumbnailBlob
         };
 
-        // Force a state update with setTimeout to ensure it's processed in the next tick
         setTimeout(() => {
           setProcessedVideo(processedVideoObj);
           setDownloadName(newName);
           setFileExtension(newExtension);
           setIsProcessing(false);
           setProgress(0);
-          
-          console.log('States updated:', {
-            processedVideo: processedVideoObj,
-            downloadName: newName,
-            fileExtension: newExtension
-          });
         }, 0);
       }
     } catch (error) {
@@ -162,45 +166,36 @@ export const Timeline = () => {
     }
   };
 
-  const handleDownload = () => {
+  const handleAddToBatch = () => {
     if (!processedVideo || !downloadName) {
-      console.log('Cannot download: missing data', {
+      console.log('Cannot add to batch: missing data', {
         hasProcessedVideo: !!processedVideo,
         hasDownloadName: !!downloadName
       });
       return;
     }
 
-    console.log('Starting download', {
-      fileName: `${downloadName}${fileExtension}`,
-      fileSize: processedVideo.size
-    });
+    const clip: VideoClip = {
+      id: uuidv4(),
+      startTime: video.clipStart,
+      endTime: video.clipEnd,
+      duration: video.clipEnd - video.clipStart,
+      name: downloadName,
+      extension: fileExtension,
+      blob: processedVideo.blob,
+      thumbnail: processedVideo.thumbnail
+    };
 
-    const url = URL.createObjectURL(processedVideo.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${downloadName}${fileExtension}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    addToBatch(clip);
+    setProcessedVideo(null);
+    setDownloadName('');
+    setFileExtension('.mp4');
   };
-
-  // Debug render logging
-  console.log('Rendering Timeline with state:', {
-    hasProcessedVideo: !!processedVideo,
-    isProcessing,
-    progress,
-    downloadName
-  });
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="relative h-12" ref={timelineRef} onClick={handleTimelineClick}>
-        {/* Timeline background */}
         <div className="absolute inset-0 bg-gray-200 rounded-full" />
-        
-        {/* Selected range */}
         <div
           className="absolute h-full bg-blue-200 rounded-full"
           style={{
@@ -208,21 +203,15 @@ export const Timeline = () => {
             width: `${endPos - startPos}%`,
           }}
         />
-        
-        {/* Playhead */}
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-blue-600"
           style={{ left: `${currentPos}%` }}
         />
-        
-        {/* Start handle */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-blue-600 rounded-full cursor-pointer hover:scale-110 transition-transform"
           style={{ left: `${startPos}%` }}
           onMouseDown={() => setIsDragging('start')}
         />
-        
-        {/* End handle */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-blue-600 rounded-full cursor-pointer hover:scale-110 transition-transform"
           style={{ left: `${endPos}%` }}
@@ -230,21 +219,19 @@ export const Timeline = () => {
         />
       </div>
 
-      {/* Time indicators */}
       <div className="flex justify-between text-sm text-gray-600">
         <span>{formatTime(video.clipStart)}</span>
         <span>{formatTime(video.clipEnd - video.clipStart)} selected</span>
         <span>{formatTime(video.clipEnd)}</span>
       </div>
 
-      {/* Clip and Download buttons */}
       {video.clipEnd > video.clipStart && (
         <div className="flex flex-col items-center gap-4">
           {!processedVideo ? (
             <button
               onClick={handleClipVideo}
               disabled={isProcessing}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-black rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
@@ -252,9 +239,7 @@ export const Timeline = () => {
                   Processing... {Math.round(progress * 100)}%
                 </>
               ) : (
-                <>
-                  Prepare Clip
-                </>
+                'Prepare Clip'
               )}
             </button>
           ) : (
@@ -274,7 +259,7 @@ export const Timeline = () => {
                     type="text"
                     value={downloadName}
                     onChange={(e) => setDownloadName(e.target.value)}
-                    className="filename-input px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    className="filename-input px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                     placeholder="Enter file name"
                   />
                   <select
@@ -288,10 +273,9 @@ export const Timeline = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-4">
                 <button
                   onClick={() => {
-                    console.log('Canceling clip process');
                     setProcessedVideo(null);
                     setDownloadName('');
                   }}
@@ -301,12 +285,11 @@ export const Timeline = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={handleDownload}
+                  onClick={handleAddToBatch}
                   disabled={!downloadName}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-black rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FaDownload />
-                  Download
+                  Add to Batch
                 </button>
               </div>
             </div>
@@ -315,4 +298,4 @@ export const Timeline = () => {
       )}
     </div>
   );
-}; 
+};

@@ -10,7 +10,6 @@
 .container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 1rem;
 }
 
 /* Video editor specific styles */
@@ -124,16 +123,13 @@ button:disabled {
 
 /* Ensure proper input styles */
 input, select {
-  padding: 0.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.375rem;
-  background-color: white;
+  outline: none;
+  transition: all 0.2s;
 }
 
 input:focus, select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  ring: 2px;
+  ring-color: blue-500;
 }
 
 /* Ensure proper text contrast */

@@ -11,6 +11,7 @@ const initialState: VideoState = {
   clipEnd: 0,
   isProcessing: false,
   error: null,
+  batch: [],
 };
 
 export const useVideoStore = create<VideoEditorStore>((set, get) => ({
@@ -101,5 +102,32 @@ export const useVideoStore = create<VideoEditorStore>((set, get) => ({
       }));
       return null;
     }
+  },
+
+  addToBatch: (clip) => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        batch: [...state.video.batch, clip],
+      },
+    }));
+  },
+
+  removeFromBatch: (id) => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        batch: state.video.batch.filter((clip) => clip.id !== id),
+      },
+    }));
+  },
+
+  clearBatch: () => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        batch: [],
+      },
+    }));
   },
 })); 

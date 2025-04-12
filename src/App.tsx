@@ -2,6 +2,8 @@ import { useVideoStore } from '@/lib/store'
 import { VideoUploader } from '@/components/VideoUploader'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { Timeline } from '@/components/Timeline'
+import { BatchDisplay } from '@/components/BatchDisplay'
+import { Navbar } from '@/components/Navbar'
 import { FaSpinner } from 'react-icons/fa'
 import './App.css'
 
@@ -9,14 +11,10 @@ function App() {
   const { video } = useVideoStore()
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="container py-6">
-          <h1 className="text-3xl font-bold text-gray-900">MP4 Clipper</h1>
-        </div>
-      </header>
-
-      <main className="container py-6">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <Navbar />
+      
+      <main className="flex-1 mx-auto px-6 py-6">
         <div className="video-editor">
           {video.isProcessing && (
             <div className="processing-overlay">
@@ -41,6 +39,7 @@ function App() {
               <div className="timeline-container">
                 <Timeline />
               </div>
+              <BatchDisplay />
             </div>
           )}
         </div>
