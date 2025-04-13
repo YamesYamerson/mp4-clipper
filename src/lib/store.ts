@@ -12,14 +12,34 @@ const initialState: VideoState = {
   isProcessing: false,
   error: null,
   batch: [],
+  uploadedVideos: [],
 };
 
 export const useVideoStore = create<VideoEditorStore>((set, get) => ({
   video: initialState,
   
-  setVideoFile: async (file) => {
+  setVideoFile: async (file: File | null) => {
+    if (!file) {
+      set((state) => ({
+        video: {
+          ...initialState,
+          uploadedVideos: state.video.uploadedVideos
+        }
+      }));
+      return;
+    }
+
     console.log('Setting video file:', file.name);
-    set((state) => ({ video: { ...state.video, file, isProcessing: true } }));
+    set((state) => ({ 
+      video: { 
+        ...state.video, 
+        file, 
+        isProcessing: true,
+        uploadedVideos: state.video.uploadedVideos.some(v => v.name === file.name) 
+          ? state.video.uploadedVideos 
+          : [...state.video.uploadedVideos, file]
+      } 
+    }));
     try {
       const processor = VideoProcessor.getInstance();
       await processor.init();
@@ -127,6 +147,46 @@ export const useVideoStore = create<VideoEditorStore>((set, get) => ({
       video: {
         ...state.video,
         batch: [],
+      },
+    }));
+  },
+
+  removeUploadedVideo: (fileName: string) => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        uploadedVideos: state.video.uploadedVideos.filter(file => file.name !== fileName),
+      },
+    }));
+  },
+
+  renameClip: (id: string, newName: string) => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        batch: state.video.batch.map(clip => 
+          clip.id === id ? { ...clip, name: newName } : clip
+        ),
+      },
+    }));
+  },
+
+  renameUploadedVideo: (oldName: string, newName: string) => {
+    set((state) => ({
+      video: {
+        ...state.video,
+        uploadedVideos: state.video.uploadedVideos.map(file => {
+          if (file.name === oldName) {
+            // Create a new File object with the new name
+            const newFile = new File([file], newName, { type: file.type });
+            // If this is the current video, update that too
+            if (state.video.file?.name === oldName) {
+              state.video.file = newFile;
+            }
+            return newFile;
+          }
+          return file;
+        }),
       },
     }));
   },

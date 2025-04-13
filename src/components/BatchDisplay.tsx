@@ -1,8 +1,27 @@
 import { useVideoStore } from '@/lib/store';
 import { FaTrash, FaDownload } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
 
 export const BatchDisplay = () => {
   const { video, removeFromBatch } = useVideoStore();
+  const [thumbnailUrls, setThumbnailUrls] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    // Create object URLs for thumbnails
+    const urls: { [key: string]: string } = {};
+    video.batch.forEach((clip) => {
+      if (clip.thumbnail && !thumbnailUrls[clip.id]) {
+        urls[clip.id] = URL.createObjectURL(clip.thumbnail);
+      }
+    });
+
+    setThumbnailUrls(prev => ({ ...prev, ...urls }));
+
+    // Cleanup
+    return () => {
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [video.batch]);
 
   const handleDownloadAll = () => {
     video.batch.forEach((clip) => {
@@ -26,50 +45,64 @@ export const BatchDisplay = () => {
   }
 
   return (
-    <div className="mt-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Batch ({video.batch.length})</h2>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-800">
+          Batch ({video.batch.length})
+        </h2>
         <button
-          onClick={handleDownloadAll}
-          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+          onClick={() => {
+            video.batch.forEach((clip) => {
+              const url = URL.createObjectURL(clip.blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = clip.name;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            });
+          }}
+          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
         >
-          <FaDownload />
+          <FaDownload className="-ml-1 mr-2 h-4 w-4" />
           Download All
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <div className="grid grid-cols-4 gap-4">
         {video.batch.map((clip) => (
           <div
             key={clip.id}
-            className="bg-white rounded-lg shadow p-4 flex flex-col"
+            className="bg-gray-50 rounded-lg overflow-hidden shadow group"
           >
-            <div className="flex-1">
-              {clip.thumbnail ? (
+            <div className="aspect-w-16 aspect-h-9 bg-gray-200">
+              {thumbnailUrls[clip.id] ? (
                 <img
-                  src={URL.createObjectURL(clip.thumbnail)}
-                  alt={`Thumbnail for ${clip.name}`}
-                  className="w-full h-32 object-cover rounded mb-2"
+                  src={thumbnailUrls[clip.id]}
+                  alt={clip.name}
+                  className="object-cover w-full h-full"
                 />
               ) : (
-                <div className="w-full h-32 bg-gray-200 rounded mb-2 flex items-center justify-center">
-                  <span className="text-gray-500">No thumbnail</span>
+                <div className="flex items-center justify-center w-full h-full text-gray-400">
+                  No thumbnail
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">{clip.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {clip.extension} • {formatDuration(clip.duration)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRemove(clip.id)}
-                  className="p-2 text-red-500 hover:text-red-600"
-                  title="Remove from batch"
-                >
-                  <FaTrash />
-                </button>
+            </div>
+            <div className="p-3">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {clip.name}
               </div>
+              <div className="text-xs text-gray-500">
+                Duration: {formatDuration(clip.duration)}
+              </div>
+              <button
+                onClick={() => handleRemove(clip.id)}
+                className="mt-2 w-full inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <FaTrash className="-ml-1 mr-2 h-4 w-4" />
+                Remove
+              </button>
             </div>
           </div>
         ))}

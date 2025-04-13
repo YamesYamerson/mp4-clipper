@@ -14,32 +14,24 @@
 
 /* Video editor specific styles */
 .video-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  padding: 2rem;
-  background-color: white;
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
   border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  width: 100%;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
 }
 
 .video-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-container {
+  margin-bottom: 1.5rem;
 }
 
 /* Timeline specific styles */
-.timeline-container {
-  width: 100%;
-  padding: 1rem;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
 .timeline-download-panel {
   width: 100%;
   max-width: none;
@@ -66,16 +58,17 @@
 
 /* Processing overlay */
 .processing-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
+  border-radius: 0.5rem;
 }
 
 /* Ensure icons spin smoothly */
@@ -139,4 +132,60 @@ input:focus, select:focus {
 
 .text-gray-700 {
   color: #374151;
+}
+
+/* Sidebar styles */
+.sidebar {
+  width: 16rem;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-section h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sidebar-item:hover {
+  background-color: #f9fafb;
+}
+
+.sidebar-item-icon {
+  color: #6b7280;
+  margin-right: 0.5rem;
+}
+
+.sidebar-item-text {
+  font-size: 0.875rem;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar transitions */
+.sidebar-container {
+  transition: width 0.3s ease-in-out;
+}
+
+.sidebar-toggle {
+  transition: transform 0.3s ease-in-out;
 }
