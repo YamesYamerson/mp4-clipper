@@ -5,7 +5,7 @@ import { Timeline } from '@/components/Timeline'
 import { BatchDisplay } from '@/components/BatchDisplay'
 import { Navbar } from '@/components/Navbar'
 import { Sidebar } from '@/components/Sidebar'
-import { FaSpinner, FaUpload, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { FaSpinner, FaUpload } from 'react-icons/fa'
 import { useState } from 'react'
 import './App.css'
 
@@ -21,20 +21,8 @@ function App() {
     <div className="min-h-screen bg-[#1e2028] flex flex-col">
       <Navbar />
       
-      <div className="flex-1 flex overflow-hidden">
-        <div className={`transition-all duration-300 flex ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
-          <Sidebar />
-        </div>
-
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute left-0 top-20 bg-[#2a2d37] text-gray-400 hover:text-gray-100 p-1.5 rounded-r border border-[#3a3d47] border-l-0 transition-all duration-300"
-          style={{
-            transform: `translateX(${isSidebarOpen ? '256px' : '0px'})`
-          }}
-        >
-          {isSidebarOpen ? <FaChevronLeft size={14} /> : <FaChevronRight size={14} />}
-        </button>
+      <div className="flex-1 flex overflow-hidden"> 
+        <Sidebar />
         
         <main className="flex-1 overflow-y-auto bg-[#1e2028]">
           <div className="max-w-6xl mx-auto px-6 py-6">

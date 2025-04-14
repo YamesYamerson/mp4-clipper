@@ -194,51 +194,53 @@ export const VideoPlayer = () => {
           controls={false}
         />
       </div>
-      <div className="flex items-center justify-center space-x-4">
-        <button
-          onClick={() => handleSeek(video.clipStart)}
-          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
-          disabled={!video.file}
-          title="Go to start of clip"
-        >
-          <FaStepBackward className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => handleSeek(Math.max(video.clipStart, video.currentTime - 5))}
-          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
-          disabled={!video.file}
-          title="Step backward 5 seconds"
-        >
-          <FaBackward className="w-5 h-5" />
-        </button>
-        <button
-          onClick={handlePlayPause}
-          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
-          disabled={!video.file}
-          title={video.isPlaying ? "Pause" : "Play"}
-        >
-          {video.isPlaying ? (
-            <FaPause className="w-5 h-5" />
-          ) : (
-            <FaPlay className="w-5 h-5" />
-          )}
-        </button>
-        <button
-          onClick={() => handleSeek(Math.min(video.clipEnd, video.currentTime + 5))}
-          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
-          disabled={!video.file}
-          title="Step forward 5 seconds"
-        >
-          <FaForward className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => handleSeek(video.clipEnd)}
-          className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
-          disabled={!video.file}
-          title="Go to end of clip"
-        >
-          <FaStepForward className="w-5 h-5" />
-        </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center space-x-4">
+          <button
+            onClick={() => handleSeek(video.clipStart)}
+            className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+            disabled={!video.file}
+            title="Go to start of clip"
+          >
+            <FaStepBackward className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => handleSeek(Math.max(video.clipStart, video.currentTime - 5))}
+            className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+            disabled={!video.file}
+            title="Step backward 5 seconds"
+          >
+            <FaBackward className="w-5 h-5" />
+          </button>
+          <button
+            onClick={handlePlayPause}
+            className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+            disabled={!video.file}
+            title={video.isPlaying ? "Pause" : "Play"}
+          >
+            {video.isPlaying ? (
+              <FaPause className="w-5 h-5" />
+            ) : (
+              <FaPlay className="w-5 h-5" />
+            )}
+          </button>
+          <button
+            onClick={() => handleSeek(Math.min(video.clipEnd, video.currentTime + 5))}
+            className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+            disabled={!video.file}
+            title="Step forward 5 seconds"
+          >
+            <FaForward className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => handleSeek(video.clipEnd)}
+            className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50"
+            disabled={!video.file}
+            title="Go to end of clip"
+          >
+            <FaStepForward className="w-5 h-5" />
+          </button>
+        </div>
         <button
           onClick={handlePrepareClip}
           disabled={isProcessing}

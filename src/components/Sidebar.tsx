@@ -58,145 +58,154 @@ export const Sidebar = () => {
     setEditingName(null)
   }
 
-  if (!isSidebarOpen) {
-    return null;
-  }
-
   return (
-    <div className="w-64 bg-[#1e2028] border-r border-[#2a2d37] overflow-y-auto flex flex-col">
+    <div className={`bg-[#1e2028] border-r border-[#2a2d37] overflow-y-auto flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-12'}`}>
       <div className="p-4 border-b border-[#2a2d37] flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-100">File Manager</h2>
-        <button
-          onClick={() => setIsSidebarOpen(false)}
-          className="text-gray-400 hover:text-gray-100 p-1 rounded transition-colors"
-        >
-          <FaChevronLeft size={16} />
-        </button>
+        {isSidebarOpen ? (
+          <>
+            <h2 className="text-lg font-semibold text-gray-100">File Manager</h2>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="text-gray-400 hover:text-gray-100 p-1 rounded transition-colors"
+            >
+              <FaChevronLeft size={16} />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="text-gray-400 hover:text-gray-100 p-1 rounded transition-colors w-full flex justify-center"
+          >
+            <FaChevronRight size={16} />
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="border-b border-[#2a2d37]">
-          <button
-            onClick={() => setShowUploads(!showUploads)}
-            className="w-full p-4 flex items-center justify-between hover:bg-[#2a2d37] transition-colors"
-          >
-            <h2 className="text-lg font-semibold text-gray-100">Uploaded Videos</h2>
-            {showUploads ? <FaChevronDown className="text-gray-400" /> : <FaChevronRight className="text-gray-400" />}
-          </button>
-          
-          {showUploads && (
-            <div className="px-4 pb-4 space-y-2">
-              {video.uploadedVideos?.map((file) => (
-                <div
-                  key={file.name}
-                  className={`group relative flex items-center p-2 rounded cursor-pointer transition-colors ${
-                    video.file?.name === file.name ? 'bg-blue-500/10' : 'hover:bg-[#2a2d37]'
-                  }`}
-                  onClick={() => handleVideoSelect(file)}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FaVideo className={`${video.file?.name === file.name ? 'text-blue-400' : 'text-gray-400'}`} />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      {editingName === file.name ? (
-                        <input
-                          type="text"
-                          value={newName}
-                          onChange={(e) => setNewName(e.target.value)}
-                          onBlur={() => handleRename(file.name)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleRename(file.name)}
-                          className="text-sm bg-[#2a2d37] border border-[#3a3d47] rounded px-1 py-0.5 text-gray-100 focus:outline-none focus:border-blue-500"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span className="text-sm font-medium text-gray-100 truncate">
-                          {file.name}
+      {isSidebarOpen && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="border-b border-[#2a2d37]">
+            <button
+              onClick={() => setShowUploads(!showUploads)}
+              className="w-full p-4 flex items-center justify-between hover:bg-[#2a2d37] transition-colors"
+            >
+              <h2 className="text-lg font-semibold text-gray-100">Uploaded Videos</h2>
+              {showUploads ? <FaChevronDown className="text-gray-400" /> : <FaChevronRight className="text-gray-400" />}
+            </button>
+            
+            {showUploads && (
+              <div className="px-4 pb-4 space-y-2">
+                {video.uploadedVideos?.map((file) => (
+                  <div
+                    key={file.name}
+                    className={`group relative flex items-center p-2 rounded cursor-pointer transition-colors ${
+                      video.file?.name === file.name ? 'bg-blue-500/10' : 'hover:bg-[#2a2d37]'
+                    }`}
+                    onClick={() => handleVideoSelect(file)}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FaVideo className={`${video.file?.name === file.name ? 'text-blue-400' : 'text-gray-400'}`} />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        {editingName === file.name ? (
+                          <input
+                            type="text"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onBlur={() => handleRename(file.name)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRename(file.name)}
+                            className="text-sm bg-[#2a2d37] border border-[#3a3d47] rounded px-1 py-0.5 text-gray-100 focus:outline-none focus:border-blue-500"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span className="text-sm font-medium text-gray-100 truncate">
+                            {file.name}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">
+                          {new Date().toLocaleDateString()}
                         </span>
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {new Date().toLocaleDateString()}
-                      </span>
+                      </div>
+                    </div>
+                    <div className="absolute right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1e2028]/80 px-2 py-1 rounded">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startRename(file.name); }}
+                        className="text-gray-400 hover:text-blue-400"
+                      >
+                        <FaPen size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveUpload(file.name); }}
+                        className="text-gray-400 hover:text-red-400"
+                      >
+                        <FaTrash size={12} />
+                      </button>
                     </div>
                   </div>
-                  <div className="absolute right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1e2028]/80 px-2 py-1 rounded">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startRename(file.name); }}
-                      className="text-gray-400 hover:text-blue-400"
-                    >
-                      <FaPen size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleRemoveUpload(file.name); }}
-                      className="text-gray-400 hover:text-red-400"
-                    >
-                      <FaTrash size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <div className="border-t-4 border-[#2a2d37]">
-          <button
-            onClick={() => setShowClips(!showClips)}
-            className="w-full p-4 flex items-center justify-between hover:bg-[#2a2d37] transition-colors"
-          >
-            <h2 className="text-lg font-semibold text-gray-100">Batch Clips</h2>
-            {showClips ? <FaChevronDown className="text-gray-400" /> : <FaChevronRight className="text-gray-400" />}
-          </button>
-          
-          {showClips && (
-            <div className="px-4 pb-4 space-y-2">
-              {video.batch.map((clip: VideoClip) => (
-                <div
-                  key={clip.id}
-                  className="group relative flex items-center p-2 rounded hover:bg-[#2a2d37] transition-colors"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FaVideo className="text-gray-400" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      {editingName === clip.id ? (
-                        <input
-                          type="text"
-                          value={newName}
-                          onChange={(e) => setNewName(e.target.value)}
-                          onBlur={() => handleRename(clip.id, true)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleRename(clip.id, true)}
-                          className="text-sm bg-[#2a2d37] border border-[#3a3d47] rounded px-1 py-0.5 text-gray-100 focus:outline-none focus:border-blue-500"
-                          autoFocus
-                        />
-                      ) : (
-                        <span className="text-sm font-medium text-gray-100 truncate">
-                          {clip.name}
+          <div className="border-t-4 border-[#2a2d37]">
+            <button
+              onClick={() => setShowClips(!showClips)}
+              className="w-full p-4 flex items-center justify-between hover:bg-[#2a2d37] transition-colors"
+            >
+              <h2 className="text-lg font-semibold text-gray-100">Batch Clips</h2>
+              {showClips ? <FaChevronDown className="text-gray-400" /> : <FaChevronRight className="text-gray-400" />}
+            </button>
+            
+            {showClips && (
+              <div className="px-4 pb-4 space-y-2">
+                {video.batch.map((clip: VideoClip) => (
+                  <div
+                    key={clip.id}
+                    className="group relative flex items-center p-2 rounded hover:bg-[#2a2d37] transition-colors"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FaVideo className="text-gray-400" />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        {editingName === clip.id ? (
+                          <input
+                            type="text"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onBlur={() => handleRename(clip.id, true)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRename(clip.id, true)}
+                            className="text-sm bg-[#2a2d37] border border-[#3a3d47] rounded px-1 py-0.5 text-gray-100 focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="text-sm font-medium text-gray-100 truncate">
+                            {clip.name}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">
+                          {formatDuration(clip.end - clip.start)}
                         </span>
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {formatDuration(clip.end - clip.start)}
-                      </span>
+                      </div>
+                    </div>
+                    <div className="absolute right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1e2028]/80 px-2 py-1 rounded">
+                      <button
+                        onClick={() => startRename(clip.id)}
+                        className="text-gray-400 hover:text-blue-400"
+                      >
+                        <FaPen size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveFromBatch(clip.id)}
+                        className="text-gray-400 hover:text-red-400"
+                      >
+                        <FaTrash size={12} />
+                      </button>
                     </div>
                   </div>
-                  <div className="absolute right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1e2028]/80 px-2 py-1 rounded">
-                    <button
-                      onClick={() => startRename(clip.id)}
-                      className="text-gray-400 hover:text-blue-400"
-                    >
-                      <FaPen size={12} />
-                    </button>
-                    <button
-                      onClick={() => handleRemoveFromBatch(clip.id)}
-                      className="text-gray-400 hover:text-red-400"
-                    >
-                      <FaTrash size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 } 
